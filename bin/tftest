@@ -1,0 +1,45 @@
+#!/usr/bin/env bash
+
+set -Eeuo pipefail
+SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+PROJECT_DIR=$(pwd)
+
+function _terraform(){
+  OP=$1; shift
+  export TF_LOG=DEBUG
+  export TF_LOG_PROVIDER=TRACE
+  export TF_LOG_PATH=$PROJECT_DIR/tf.log
+  terraform \
+    $OP \
+    $*
+}
+function create(){
+
+  [[  ! -d $PROJECT_DIR/.terraform  ]] && terraform init
+  _terraform \
+    plan \
+    -out test.tfplan \
+
+  read -n 1 -s -r -p "Apply this plan (y/N)?" decision
+  echo .
+  decision=$(echo $decision | tr '[:upper:]' '[:lower:]')
+
+  [  $decision != 'y' ] && exit 0
+
+  terraform apply "test.tfplan"
+}
+function destroy(){
+  _terraform destroy
+}
+
+function clean(){
+  _terraform destroy
+}
+function console(){
+  _terraform console
+}
+
+
+OP=${1?"Missing Operations (create/destroy/clean/console)"}; shift
+
+$OP $*
